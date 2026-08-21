@@ -23,9 +23,13 @@ addressed by port; the gateway is yours to run. The whole coupling is two values
 cp .env.example .env                                # BIND_ADDR and PORT_RANGE
 cp process-compose.yaml.example process-compose.yaml
 $EDITOR process-compose.yaml                        # register your repos
-make build && make run                              # landing page on $BIND_ADDR:$PORT
-make up                                             # the dev servers themselves
+make up                                             # everything: index + dev servers
 ```
+
+`make up` builds, then hands the whole arrangement to `process-compose`: this index page
+plus every process in the registry that is not marked `disabled: true`. `make run` starts
+the index alone, unsupervised, when that is all you want. `make attach` reaches a detached
+`up` over the same unix socket.
 
 `BIND_ADDR` defaults to `10.99.99.1`, a private address held on `lo`. If nothing owns it
 yet, `make run` fails with `EADDRNOTAVAIL`; `ip addr add 10.99.99.1/32 dev lo` creates it

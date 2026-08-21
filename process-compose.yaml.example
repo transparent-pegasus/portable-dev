@@ -16,6 +16,13 @@ environment:
   - "BIND_ADDR=${BIND_ADDR:-10.99.99.1}"
 
 processes:
+  # This app's own index page. It deliberately declares no PORT=, so it takes
+  # PORT from .env and does not list itself among the dev servers.
+  portable-dev:
+    description: This index page
+    working_dir: .
+    command: cargo run --release --quiet
+
   # Replace these two with your own repos. Ports are deterministic per repo:
   # assign once, inside PORT_RANGE, and do not reuse.
   example-vite:

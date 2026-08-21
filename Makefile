@@ -41,16 +41,17 @@ build:
 	cargo build --release
 	cd web && aube ci && aube run build
 
-# Serves web/dist and /api/servers on $(BIND_ADDR):$(PORT).
+# Just this index page, unsupervised. `make up` is the whole arrangement.
 run: build
 	cargo run --release
 
-# Starts the dev servers in process-compose.yaml. A unix socket instead of
-# process-compose's default TCP 8080, so a second instance on this host — another
-# repo's, or a long-running one — cannot collide with ours.
+# Starts everything process-compose.yaml enables: this index page and every dev
+# server not marked `disabled: true`. A unix socket instead of process-compose's
+# default TCP 8080, so a second instance on this host — another repo's, or a
+# long-running one — cannot collide with ours.
 PC := process-compose --use-uds -u $(CURDIR)/$(LOGS)/process-compose.sock
 
-up: | $(LOGS)
+up: build | $(LOGS)
 	$(PC) up
 
 # Talk to a detached `up` over the same socket.
