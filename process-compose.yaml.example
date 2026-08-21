@@ -16,6 +16,12 @@ environment:
   - "BIND_ADDR=${BIND_ADDR:-10.99.99.1}"
 
 processes:
+  # The tunnel. No PORT= — it is the way in, not a thing on the list.
+  cloudflared:
+    description: Cloudflare Tunnel
+    working_dir: .
+    command: cloudflared tunnel run --token-file .tunnel-token
+
   # This app's own index page. It deliberately declares no PORT=, so it takes
   # PORT from .env and does not list itself among the dev servers.
   portable-dev:

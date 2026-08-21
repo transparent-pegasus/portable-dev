@@ -254,8 +254,17 @@ async fn main() {
     }
 }
 
+/// Empty is unset. The Makefile exports BIND_ADDR/PORT/PORT_RANGE/COMPOSE_FILE
+/// whether or not .env defines them, so a bare `VAR=` must not beat the default.
+fn env_or(key: &str, fallback: &str) -> String {
+    std::env::var(key)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| fallback.to_owned())
+}
+
 async fn run() -> Result<(), String> {
-    let env = |key: &str, fallback: &str| std::env::var(key).unwrap_or_else(|_| fallback.into());
+    let env = env_or;
     let bind_addr = env("BIND_ADDR", "10.99.99.1");
     let port: u16 = env("PORT", "8788")
         .parse()
@@ -271,7 +280,23 @@ async fn run() -> Result<(), String> {
             .iter()
             .map(|server| (server.name.clone(), server.port)),
     );
-    check_ports(&env("PORT_RANGE", ""), &ports)?;
+    let range = env("PORT_RANGE", "");
+    check_ports(&range, &ports)?;
+
+    // `make setup` and `make firewall` run this before touching Cloudflare or
+    // nftables: the range they are about to publish has to cover every port.
+    if std::env::args().any(|arg| arg == "--check-ports") {
+        let covered = if range.trim().is_empty() {
+            "no PORT_RANGE declared"
+        } else {
+            &range
+        };
+        println!(
+            "portable-dev: {} port(s), all inside {covered}",
+            ports.len()
+        );
+        return Ok(());
+    }
 
     println!(
         "portable-dev: {} server(s) from {compose_file}",
@@ -318,6 +343,20 @@ async fn run() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_exported_but_empty_variable_falls_back_to_the_default() {
+        // SAFETY: single-threaded test, no other thread reads the environment.
+        unsafe {
+            std::env::set_var("PORTABLE_DEV_TEST_EMPTY", "");
+            std::env::set_var("PORTABLE_DEV_TEST_BLANK", "   ");
+            std::env::set_var("PORTABLE_DEV_TEST_SET", "value");
+        }
+        assert_eq!(env_or("PORTABLE_DEV_TEST_EMPTY", "fallback"), "fallback");
+        assert_eq!(env_or("PORTABLE_DEV_TEST_BLANK", "fallback"), "fallback");
+        assert_eq!(env_or("PORTABLE_DEV_TEST_SET", "fallback"), "value");
+        assert_eq!(env_or("PORTABLE_DEV_TEST_UNSET", "fallback"), "fallback");
+    }
 
     #[test]
     fn ports_outside_the_declared_range_are_refused() {
