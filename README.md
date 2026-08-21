@@ -46,7 +46,14 @@ processes:
     command: npm run dev -- --host $BIND_ADDR --port $PORT
     environment:
       - PORT=8789                 # this is what gets listed
+      - ICON=public/logo.svg      # optional, relative to working_dir
 ```
+
+Each entry shows its repo's own favicon. With no `ICON=`, the conventional spots under
+`working_dir` are tried — `public/favicon.{svg,png,ico}`, `web/public/favicon.{svg,png}`,
+`static/favicon.ico`, then the same names at the root — and the status dot stands in when
+nothing is found or the file later disappears. Icons are resolved once at startup and
+served from `/api/icon/<name>`, so a request names a server, never a path.
 
 Two rules, one enforced and one you have to keep:
 
@@ -74,7 +81,8 @@ gateway and keep the boundary small.
 | Path | Response |
 |---|---|
 | `/` | the UI |
-| `/api/servers` | `[{ name, description, port, url, up }]` — `up` is a 400 ms TCP connect |
+| `/api/servers` | `[{ name, description, port, url, icon, up }]` — `up` is a 400 ms TCP connect |
+| `/api/icon/<name>` | that repo's favicon, or 404 |
 
 Requests whose `Host` is not `BIND_ADDR:PORT`, `localhost:PORT`, or `127.0.0.1:PORT` get
 403, and so do requests carrying a foreign `Origin`. That is what closes DNS rebinding.
@@ -98,6 +106,10 @@ or behind your own TLS terminator. Nothing else in the app depends on it.
 | `PORT_RANGE` | *(blank)* | ports the gateway covers; blank disables the check |
 | `COMPOSE_FILE` | `process-compose.yaml` | the registry |
 | `WEB_DIR` | `web/dist` | built UI |
+
+`make` reads these from `.env`; the binary itself reads only the process environment. Run
+it through `make run`, a systemd unit, or process-compose — a bare `./portable-dev` sees no
+`.env`, so `PORT_RANGE` is unset and the range check silently does nothing.
 
 ## Development
 

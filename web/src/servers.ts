@@ -5,6 +5,7 @@ export type Server = {
   port: number;
   url: string;
   up: boolean;
+  icon?: string | null;
 };
 
 const el = (tag: string, className: string, text = ""): HTMLElement => {
@@ -23,11 +24,23 @@ const card = (server: Server): HTMLAnchorElement => {
     `${server.name}, port ${server.port}, ${server.up ? "running" : "not running"}`,
   );
 
+  const dot = el("span", "dot");
+  link.append(dot);
+  if (server.icon) {
+    const icon = document.createElement("img");
+    icon.className = "icon";
+    icon.src = server.icon;
+    icon.alt = "";
+    // CSS hides the dot while an .icon is present; removing it brings the dot back.
+    icon.addEventListener("error", () => icon.remove());
+    link.append(icon);
+  }
+
   const body = el("span", "body");
   body.append(el("span", "name", server.name));
   if (server.description) body.append(el("span", "description", server.description));
 
-  link.append(el("span", "dot"), body, el("span", "port", String(server.port)));
+  link.append(body, el("span", "port", String(server.port)));
   return link;
 };
 

@@ -4,12 +4,19 @@
 //! `PORT` in `environment`, and that is what this server lists. See the README
 //! for why every port must sit inside `PORT_RANGE`.
 
-use std::{collections::BTreeMap, net::SocketAddr, sync::Arc, time::Duration};
+use std::{
+    collections::{BTreeMap, HashMap},
+    net::SocketAddr,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
 
 use axum::{
-    extract::{Request, State},
-    http::{header::HOST, header::ORIGIN, HeaderValue, StatusCode},
+    extract::{Path as UrlPath, Request, State},
+    http::{header, header::HOST, header::ORIGIN, HeaderValue, StatusCode},
     middleware::{from_fn_with_state, Next},
+    response::IntoResponse,
     response::Response,
     routing::get,
     Json, Router,
@@ -20,6 +27,19 @@ use tower_http::services::ServeDir;
 
 const PROBE_TIMEOUT: Duration = Duration::from_millis(400);
 
+/// Looked up under a process's `working_dir` when it declares no `ICON=`.
+const ICON_CANDIDATES: &[&str] = &[
+    "public/favicon.svg",
+    "public/favicon.png",
+    "public/favicon.ico",
+    "web/public/favicon.svg",
+    "web/public/favicon.png",
+    "static/favicon.ico",
+    "favicon.svg",
+    "favicon.png",
+    "favicon.ico",
+];
+
 #[derive(Deserialize)]
 struct Compose {
     #[serde(default)]
@@ -29,6 +49,7 @@ struct Compose {
 #[derive(Deserialize)]
 struct Process {
     description: Option<String>,
+    working_dir: Option<String>,
     #[serde(default)]
     environment: Vec<String>,
 }
@@ -39,6 +60,8 @@ struct Server {
     description: String,
     port: u16,
     url: String,
+    /// `/api/icon/<name>` when the repo has a favicon, otherwise absent.
+    icon: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -51,13 +74,41 @@ struct Status {
 #[derive(Clone)]
 struct App {
     servers: Arc<Vec<Server>>,
+    /// Resolved once at startup. A request names a server, never a path, so
+    /// nothing a client sends can reach a file this map does not already hold.
+    icons: Arc<HashMap<String, PathBuf>>,
     hosts: Arc<Vec<String>>,
     bind_addr: Arc<str>,
 }
 
+/// `ICON=` in a process's environment wins — relative to `working_dir`, or
+/// absolute. Failing that, the conventional spots in the repo are tried.
+fn find_icon(working_dir: Option<&str>, declared: Option<&str>) -> Option<PathBuf> {
+    let root = Path::new(working_dir?);
+    if let Some(declared) = declared {
+        let path = root.join(declared);
+        return path.is_file().then_some(path);
+    }
+    ICON_CANDIDATES
+        .iter()
+        .map(|candidate| root.join(candidate))
+        .find(|path| path.is_file())
+}
+
+fn icon_mime(path: &Path) -> &'static str {
+    match path.extension().and_then(|ext| ext.to_str()) {
+        Some("svg") => "image/svg+xml",
+        Some("ico") => "image/vnd.microsoft.icon",
+        Some("jpg" | "jpeg") => "image/jpeg",
+        _ => "image/png",
+    }
+}
+
 /// Ports come from each process's own `PORT=` entry; a process without one is
 /// not a dev server we can link to, so it is left out of the list.
-fn read_registry(path: &str, bind_addr: &str) -> Result<Vec<Server>, String> {
+type Registry = (Vec<Server>, HashMap<String, PathBuf>);
+
+fn read_registry(path: &str, bind_addr: &str) -> Result<Registry, String> {
     let text = std::fs::read_to_string(path).map_err(|e| match e.kind() {
         std::io::ErrorKind::NotFound => {
             format!("{path} not found. Copy the example: `cp {path}.example {path}`")
@@ -66,25 +117,34 @@ fn read_registry(path: &str, bind_addr: &str) -> Result<Vec<Server>, String> {
     })?;
     let compose: Compose = serde_yaml_ng::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
 
-    Ok(compose
-        .processes
-        .into_iter()
-        .filter_map(|(name, process)| {
-            let port: u16 = process
+    let mut servers = Vec::new();
+    let mut icons = HashMap::new();
+    for (name, process) in compose.processes {
+        let entry = |key: &str| {
+            process
                 .environment
                 .iter()
-                .find_map(|entry| entry.strip_prefix("PORT="))?
-                .trim()
-                .parse()
-                .ok()?;
-            Some(Server {
-                url: format!("http://{bind_addr}:{port}/"),
-                description: process.description.unwrap_or_default(),
-                name,
-                port,
-            })
-        })
-        .collect())
+                .find_map(|entry| entry.strip_prefix(key))
+                .map(str::trim)
+        };
+        let Some(Ok(port)) = entry("PORT=").map(str::parse::<u16>) else {
+            continue;
+        };
+        let icon = find_icon(process.working_dir.as_deref(), entry("ICON="));
+        if let Some(icon) = icon {
+            icons.insert(name.clone(), icon);
+        }
+        servers.push(Server {
+            url: format!("http://{bind_addr}:{port}/"),
+            description: process.description.unwrap_or_default(),
+            icon: icons
+                .contains_key(&name)
+                .then(|| format!("/api/icon/{name}")),
+            name,
+            port,
+        });
+    }
+    Ok((servers, icons))
 }
 
 /// `8787-8799`, or a bare `8787`. Blank means "no range declared".
@@ -155,6 +215,16 @@ async fn guard_host(
     Ok(next.run(request).await)
 }
 
+async fn icon(State(app): State<App>, UrlPath(name): UrlPath<String>) -> impl IntoResponse {
+    let Some(path) = app.icons.get(&name) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    match tokio::fs::read(path).await {
+        Ok(bytes) => ([(header::CONTENT_TYPE, icon_mime(path))], bytes).into_response(),
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 async fn list_servers(State(app): State<App>) -> Json<Vec<Status>> {
     let mut probes = JoinSet::new();
     for (index, server) in app.servers.iter().cloned().enumerate() {
@@ -193,7 +263,7 @@ async fn run() -> Result<(), String> {
     let compose_file = env("COMPOSE_FILE", "process-compose.yaml");
     let web_dir = env("WEB_DIR", "web/dist");
 
-    let servers = read_registry(&compose_file, &bind_addr)?;
+    let (servers, icons) = read_registry(&compose_file, &bind_addr)?;
 
     let mut ports = vec![("portable-dev".to_owned(), port)];
     ports.extend(
@@ -210,6 +280,7 @@ async fn run() -> Result<(), String> {
 
     let app = App {
         servers: Arc::new(servers),
+        icons: Arc::new(icons),
         hosts: Arc::new(
             [bind_addr.as_str(), "localhost", "127.0.0.1"]
                 .iter()
@@ -221,6 +292,7 @@ async fn run() -> Result<(), String> {
 
     let router = Router::new()
         .route("/api/servers", get(list_servers))
+        .route("/api/icon/{name}", get(icon))
         .fallback_service(ServeDir::new(&web_dir).append_index_html_on_directories(true))
         .layer(from_fn_with_state(app.clone(), guard_host))
         .with_state(app);
@@ -289,7 +361,7 @@ processes:
 "#;
         let path = std::env::temp_dir().join("portable-dev-registry-test.yaml");
         std::fs::write(&path, yaml).unwrap();
-        let servers = read_registry(path.to_str().unwrap(), "10.99.99.1").unwrap();
+        let (servers, icons) = read_registry(path.to_str().unwrap(), "10.99.99.1").unwrap();
 
         // `worker` declares no PORT, so it is not a linkable dev server.
         assert_eq!(servers.len(), 2);
@@ -298,5 +370,43 @@ processes:
         assert_eq!(servers[0].description, "API dev server");
         assert_eq!(servers[0].url, "http://10.99.99.1:8790/");
         assert_eq!(servers[1].description, "");
+        // No working_dir, so nothing to find an icon in.
+        assert!(icons.is_empty());
+        assert!(servers.iter().all(|server| server.icon.is_none()));
+    }
+
+    #[test]
+    fn icons_come_from_icon_or_a_conventional_path_under_working_dir() {
+        let root = std::env::temp_dir().join("portable-dev-icon-test");
+        let public = root.join("public");
+        std::fs::create_dir_all(&public).unwrap();
+        std::fs::write(public.join("favicon.png"), b"png").unwrap();
+        std::fs::write(root.join("brand.svg"), b"<svg/>").unwrap();
+        let root = root.to_str().unwrap();
+
+        // Conventional path, found without the process declaring anything.
+        assert_eq!(
+            find_icon(Some(root), None),
+            Some(public.join("favicon.png"))
+        );
+        // An explicit ICON= wins over the conventional path.
+        assert_eq!(
+            find_icon(Some(root), Some("brand.svg"))
+                .unwrap()
+                .file_name(),
+            Some("brand.svg".as_ref())
+        );
+        // A declared file that is not there is not silently replaced by the fallback.
+        assert_eq!(find_icon(Some(root), Some("missing.png")), None);
+        assert_eq!(find_icon(None, Some("brand.svg")), None);
+
+        assert_eq!(icon_mime(Path::new("a/favicon.svg")), "image/svg+xml");
+        assert_eq!(icon_mime(Path::new("a/favicon.png")), "image/png");
+        assert_eq!(
+            icon_mime(Path::new("a/favicon.ico")),
+            "image/vnd.microsoft.icon"
+        );
+
+        std::fs::remove_dir_all(std::env::temp_dir().join("portable-dev-icon-test")).unwrap();
     }
 }

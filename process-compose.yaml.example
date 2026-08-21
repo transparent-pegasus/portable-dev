@@ -21,6 +21,7 @@ processes:
     command: npm run dev -- --host $BIND_ADDR --port $PORT --strictPort
     environment:
       - PORT=8789
+      - ICON=public/logo.svg # optional; relative to working_dir
     readiness_probe:
       http_get: { host: $BIND_ADDR, port: 8789, path: / }
 
