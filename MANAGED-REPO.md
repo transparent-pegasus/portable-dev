@@ -122,7 +122,7 @@ favicon.svg   favicon.png   favicon.ico
 Ship one of those and you get an icon for free. To point somewhere else, add
 `ICON=path/to/icon.svg` to `environment`, relative to `working_dir`. Files are resolved
 once at startup and served from `/api/icon/<name>`; nothing else in your repo is readable
-through Portable Dev. If the file is missing, the status dot stands in.
+through Portable Dev. If the file is missing, a placeholder mark stands in.
 
 ## 6. Security — the part not to skip
 

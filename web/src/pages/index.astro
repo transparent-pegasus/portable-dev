@@ -153,14 +153,6 @@
       #servers .server:active { border-color: #a1a1aa; }
       #servers .server:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
 
-      #servers .dot {
-        flex: none;
-        width: 0.55rem;
-        height: 0.55rem;
-        border-radius: 50%;
-        background: var(--down);
-      }
-      #servers .up .dot { background: var(--up); }
       #servers .down { color: var(--muted); }
 
       /* Constrained hard: a repo favicon is often 512px square. */
@@ -171,9 +163,11 @@
         object-fit: contain;
         border-radius: 0.25rem;
       }
-      /* The dot is the fallback; an icon beside it takes the slot instead. */
-      #servers .server:has(.icon) .dot { display: none; }
-      #servers .down .icon { filter: grayscale(1); opacity: 0.4; }
+      /* No favicon: the placeholder holds the slot, in light grey. It says "no icon
+         here", not "look at me" — a repo's own icon should be the only thing with
+         weight in the list, and up/down is already carried by the card. */
+      #servers .placeholder { color: var(--muted); opacity: 0.35; }
+      #servers .down img.icon { filter: grayscale(1); opacity: 0.4; }
 
       #servers .body { flex: 1; display: grid; min-width: 0; }
       #servers .name { font-weight: 600; }
@@ -195,7 +189,6 @@
         min-height: 9rem;
       }
       #servers.tile .icon { width: 4.5rem; height: 4.5rem; }
-      #servers.tile .dot { margin: 0.85rem 0; }
       #servers.tile .body { flex: 1; width: 100%; align-content: start; }
       #servers.tile .description { white-space: normal; }
       #servers.tile .port { align-self: flex-start; }

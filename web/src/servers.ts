@@ -15,6 +15,18 @@ const el = (tag: string, className: string, text = ""): HTMLElement => {
   return node;
 };
 
+/** Lucide `scan`, inlined rather than depended on. Strokes take currentColor. */
+const SCAN =
+  '<svg class="icon placeholder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>';
+
+/** The stand-in for a repo with no favicon — the icon slot is never empty. */
+const placeholder = (): Element => {
+  const host = document.createElement("span");
+  // A constant: nothing a server declares reaches this markup.
+  host.innerHTML = SCAN;
+  return host.firstElementChild as Element;
+};
+
 const card = (server: Server): HTMLAnchorElement => {
   const link = document.createElement("a");
   link.className = server.up ? "server up" : "server down";
@@ -24,16 +36,15 @@ const card = (server: Server): HTMLAnchorElement => {
     `${server.name}, port ${server.port}, ${server.up ? "running" : "not running"}`,
   );
 
-  const dot = el("span", "dot");
-  link.append(dot);
   if (server.icon) {
     const icon = document.createElement("img");
     icon.className = "icon";
     icon.src = server.icon;
     icon.alt = "";
-    // CSS hides the dot while an .icon is present; removing it brings the dot back.
-    icon.addEventListener("error", () => icon.remove());
+    icon.addEventListener("error", () => icon.replaceWith(placeholder()));
     link.append(icon);
+  } else {
+    link.append(placeholder());
   }
 
   const body = el("span", "body");

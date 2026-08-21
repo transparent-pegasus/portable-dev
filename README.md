@@ -8,7 +8,7 @@ them from a phone. List view and tile view, one switch between them. Installable
 You have a machine running several repos' dev servers and you want them on your phone.
 Portable Dev supervises them, and owns the way in: one Cloudflare Tunnel, one private
 route, one Access policy admitting one identity, and one firewall rule covering a port
-range. The index page is one tap per server, with a live up/down dot.
+range. The index page is one tap per server, each showing live up/down state.
 
 ```
 phone ──> Cloudflare Access ──> Tunnel ──> 10.99.99.1:18586 ──> Portable Dev
@@ -65,8 +65,8 @@ processes:
 
 Each entry shows its repo's own favicon. With no `ICON=`, the conventional spots under
 `working_dir` are tried — `public/favicon.{svg,png,ico}`, `web/public/favicon.{svg,png}`,
-`static/favicon.ico`, then the same names at the root — and the status dot stands in when
-nothing is found or the file later disappears. Icons are resolved once at startup and
+`static/favicon.ico`, then the same names at the root — and a placeholder mark stands in
+when nothing is found or the file later disappears. Icons are resolved once at startup and
 served from `/api/icon/<name>`, so a request names a server, never a path.
 
 Two rules, one enforced and one you have to keep:

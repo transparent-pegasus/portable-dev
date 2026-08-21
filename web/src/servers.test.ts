@@ -28,26 +28,26 @@ test("renders one linked card per server, marked up or down", () => {
   expect(links[1].getAttribute("aria-label")).toBe("docs, port 8791, not running");
 });
 
-test("shows the repo icon when there is one, and the dot alone when there is not", () => {
+test("shows the repo icon when there is one, and the placeholder when there is not", () => {
   renderServers(container, [server({ icon: "/api/icon/api" }), server({ name: "docs" })]);
 
   const [withIcon, without] = container.querySelectorAll("a.server");
   expect(withIcon.querySelector("img.icon")?.getAttribute("src")).toBe("/api/icon/api");
   expect(withIcon.querySelector("img.icon")?.getAttribute("alt")).toBe("");
+  // Exactly one mark in the icon slot, either way.
+  expect(withIcon.querySelector(".placeholder")).toBe(null);
   expect(without.querySelector("img.icon")).toBe(null);
-  // The dot is always present; CSS hides it only while an icon sits beside it.
-  expect(withIcon.querySelector(".dot")).not.toBe(null);
-  expect(without.querySelector(".dot")).not.toBe(null);
+  expect(without.querySelector("svg.placeholder")?.getAttribute("aria-hidden")).toBe("true");
 });
 
-test("a broken icon falls back to the dot", () => {
+test("a broken icon falls back to the placeholder", () => {
   renderServers(container, [server({ icon: "/api/icon/gone" })]);
   const icon = container.querySelector("img.icon") as HTMLImageElement;
 
   icon.dispatchEvent(new Event("error"));
 
   expect(container.querySelector("img.icon")).toBe(null);
-  expect(container.querySelector(".dot")).not.toBe(null);
+  expect(container.querySelectorAll("svg.placeholder").length).toBe(1);
 });
 
 test("names are set as text, never parsed as markup", () => {
