@@ -2,7 +2,8 @@
 #
 # The registry. Portable Dev lists a process here when — and only when — its
 # `environment` declares a `PORT`, and refuses to start if any of them falls
-# outside `PORT_RANGE` — outside it, nothing authorizes the port (see README).
+# outside `PORT_RANGE`. That range is declared in .env and made true by
+# `make setup` and `make firewall`; outside it a port is authorized by nothing.
 #
 # Every dev server must bind $BIND_ADDR. Not 127.0.0.1 (unreachable through the
 # tunnel) and not 0.0.0.0 (published to the LAN).
@@ -29,23 +30,30 @@ processes:
     working_dir: .
     command: cargo run --release --quiet
 
-  # Replace these two with your own repos. Ports are deterministic per repo:
-  # assign once, inside PORT_RANGE, and do not reuse.
-  example-vite:
-    description: Example Vite app
+  # Replace these with your own repos. Ports are deterministic per repo: assign
+  # once, inside PORT_RANGE, and do not reuse. See MANAGED-REPO.md for what a
+  # repository has to do to be startable from here.
+
+  # A front end with no back end of its own: the bundler's dev server is the
+  # whole app, so it is what runs.
+  example-web:
+    description: Example front end
     disabled: true
-    working_dir: ../example-vite
+    working_dir: ../example-web
     command: aube run dev -- --host $BIND_ADDR --port $PORT --strictPort
     environment:
-      - PORT=8789
-      - ICON=public/logo.svg # optional; relative to working_dir
+      - PORT=18588
+      - ICON=public/logo.svg # optional; relative to working_dir. Auto-detected otherwise.
     readiness_probe:
-      http_get: { host: $BIND_ADDR, port: 8789, path: / }
+      http_get: { host: $BIND_ADDR, port: 18588, path: / }
 
-  example-api:
-    description: Example API
+  # An app whose back end serves BOTH its API and its built UI. Start the back
+  # end, not the bundler: `aube run dev` here would return the page and 404
+  # every request the page makes.
+  example-app:
+    description: Example API + UI
     disabled: true
-    working_dir: ../example-api
-    command: cargo run
+    working_dir: ../example-app
+    command: make web && cargo run --release --quiet
     environment:
-      - PORT=8790
+      - PORT=18589

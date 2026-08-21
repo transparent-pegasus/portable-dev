@@ -5,26 +5,36 @@ them from a phone. List view and tile view, one switch between them. Installable
 
 ## What this is
 
-You have a machine running several repos' dev servers and a tunnel or VPN that already
-reaches it. Portable Dev is the index page: one tap per server, with a live up/down dot.
+You have a machine running several repos' dev servers and you want them on your phone.
+Portable Dev supervises them, and owns the way in: one Cloudflare Tunnel, one private
+route, one Access policy admitting one identity, and one firewall rule covering a port
+range. The index page is one tap per server, with a live up/down dot.
 
 ```
-phone ──> tunnel / VPN ──> 10.99.99.1:8788 ──> Portable Dev
-                           10.99.99.1:8789 ──> your dev server
-                           10.99.99.1:8790 ──> another one
+phone ──> Cloudflare Access ──> Tunnel ──> 10.99.99.1:18586 ──> Portable Dev
+                                           10.99.99.1:18587 ──> your dev server
+                                           10.99.99.1:18588 ──> another one
 ```
 
-It does not proxy anything, and it manages no tunnel, firewall, or DNS. Servers are
-addressed by port; the gateway is yours to run. The whole coupling is two values.
+It does not proxy. Servers are addressed by port and answer for themselves; the tunnel is
+an L4 private route, so HMR and WebSockets pass through unchanged.
+
+Everything inside the range shares one authorization boundary. Nothing outside it is
+covered at all — see [What you are exposing](#what-you-are-exposing).
 
 ## Quick start
 
 ```sh
-cp .env.example .env                                # BIND_ADDR and PORT_RANGE
+cp .env.example .env                                # ports + Cloudflare credentials
 cp process-compose.yaml.example process-compose.yaml
 $EDITOR process-compose.yaml                        # register your repos
-make up                                             # everything: index + dev servers
+make setup                                          # Cloudflare side; writes .tunnel-token
+make up                                             # everything: tunnel + index + servers
 ```
+
+`make setup` is needed once, and again whenever `PORT_RANGE` changes — it is what makes the
+range true on the Cloudflare side. `make up` runs `bind-addr` and `firewall` first, both of
+which need `sudo`.
 
 `make up` builds, then hands the whole arrangement to `process-compose`: this index page
 plus every process in the registry that is not marked `disabled: true`. `make run` starts
@@ -62,10 +72,10 @@ served from `/api/icon/<name>`, so a request names a server, never a path.
 Two rules, one enforced and one you have to keep:
 
 - Every port must be inside `PORT_RANGE`. Portable Dev refuses to start otherwise. The
-  range is whatever your gateway's firewall rule and access policy actually cover — a port
-  outside it is reachable by anyone who can route to the address and is authorized by
-  nothing. That is a security bug, not a broken link. Widen the range on the gateway
-  first, here second. Leave `PORT_RANGE` blank to switch the check off.
+  range is what the Access destination and the nftables rule actually cover — a port outside
+  it is reachable by anyone who can route to the address and is authorized by nothing. That
+  is a security bug, not a broken link. Widening it means editing `PORT_RANGE`, then
+  `make setup && make firewall`. Leave it blank to switch the check off.
 - Bind `$BIND_ADDR`. `127.0.0.1` is unreachable through a tunnel; `0.0.0.0` publishes the
   server to every network the host is on. Most dev servers need an explicit `--host`.
 
@@ -110,9 +120,14 @@ or behind your own TLS terminator. Nothing else in the app depends on it.
 |---|---|---|
 | `BIND_ADDR` | `10.99.99.1` | address every server in this arrangement binds |
 | `PORT` | `8788` | Portable Dev's own port |
-| `PORT_RANGE` | *(blank)* | ports the gateway covers; blank disables the check |
+| `PORT_RANGE` | *(blank)* | the covered range; blank disables the check |
 | `COMPOSE_FILE` | `process-compose.yaml` | the registry |
 | `WEB_DIR` | `web/dist` | built UI |
+
+`make setup` additionally needs `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
+`USER_EMAIL`, `TEAM_NAME` and `APP_NAME` — see `.env.example`. The Makefile exports only
+the first group to recipes, so the API token never reaches `cargo`, `aube`, or any dev
+server process-compose starts.
 
 `make` reads these from `.env`; the binary itself reads only the process environment. Run
 it through `make run`, a systemd unit, or process-compose — a bare `./portable-dev` sees no

@@ -66,10 +66,18 @@
       navigator.serviceWorker?.register("/sw.js");
     </script>
 
-    <style>
+    <!--
+      is:global is load-bearing. Astro scopes a <style> block by stamping
+      data-astro-cid-* on the elements in this template, and every card is built
+      by servers.ts at runtime, so it never gets the attribute. Scoped rules
+      match nothing and the list renders unstyled. Card rules stay under
+      #servers so "global" still means one subtree.
+    -->
+    <style is:global>
       :root {
         --line: #e4e4e7;
         --muted: #71717a;
+        --card: #fff;
         --up: #16a34a;
         --down: #d4d4d8;
         color-scheme: light;
@@ -79,7 +87,7 @@
         margin: 0 auto;
         padding: 1.25rem 1rem 3rem;
         max-width: 46rem;
-        background: #fff;
+        background: #fafafa;
         color: #18181b;
         font: 1rem/1.5 system-ui, sans-serif;
       }
@@ -127,55 +135,70 @@
       .toggle input:checked::after { transform: translateX(1.1rem); }
       .toggle input:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
 
-      main { display: grid; gap: 0.6rem; }
-      main.tile { grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); }
+      #servers { display: grid; gap: 0.6rem; }
+      #servers.tile { grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); }
 
-      .server {
+      #servers .server {
         display: flex;
         gap: 0.7rem;
         align-items: center;
         padding: 0.85rem 1rem;
         border: 1px solid var(--line);
         border-radius: 0.75rem;
+        background: var(--card);
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
         color: inherit;
         text-decoration: none;
       }
-      .server:active { background: #fafafa; }
-      .dot {
+      #servers .server:active { border-color: #a1a1aa; }
+      #servers .server:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
+
+      #servers .dot {
         flex: none;
         width: 0.55rem;
         height: 0.55rem;
         border-radius: 50%;
         background: var(--down);
       }
-      .up .dot { background: var(--up); }
-      .icon {
+      #servers .up .dot { background: var(--up); }
+      #servers .down { color: var(--muted); }
+
+      /* Constrained hard: a repo favicon is often 512px square. */
+      #servers .icon {
         flex: none;
-        width: 1.35rem;
-        height: 1.35rem;
+        width: 1.5rem;
+        height: 1.5rem;
         object-fit: contain;
         border-radius: 0.25rem;
       }
       /* The dot is the fallback; an icon beside it takes the slot instead. */
-      .server:has(.icon) .dot { display: none; }
-      .down .icon { filter: grayscale(1); opacity: 0.4; }
-      .down { color: var(--muted); }
-      .body { display: grid; min-width: 0; }
-      .name { font-weight: 600; }
-      .name, .description { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .description, .port { color: var(--muted); font-size: 0.82rem; }
-      .body { flex: 1; }
-      .port { flex: none; font-variant-numeric: tabular-nums; }
+      #servers .server:has(.icon) .dot { display: none; }
+      #servers .down .icon { filter: grayscale(1); opacity: 0.4; }
 
-      main.tile .server {
+      #servers .body { flex: 1; display: grid; min-width: 0; }
+      #servers .name { font-weight: 600; }
+      #servers .name,
+      #servers .description {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #servers .description,
+      #servers .port { color: var(--muted); font-size: 0.82rem; }
+      #servers .port { flex: none; font-variant-numeric: tabular-nums; }
+
+      #servers.tile .server {
         flex-direction: column;
         align-items: flex-start;
-        gap: 0.35rem;
-        min-height: 6.5rem;
+        gap: 0.5rem;
+        padding: 1rem;
+        min-height: 7.5rem;
       }
-      main.tile .icon { width: 1.75rem; height: 1.75rem; }
-      main.tile .body { width: 100%; }
-      main.tile .description { white-space: normal; }
+      #servers.tile .icon { width: 2.25rem; height: 2.25rem; }
+      #servers.tile .dot { margin: 0.85rem 0; }
+      #servers.tile .body { flex: 1; width: 100%; align-content: start; }
+      #servers.tile .description { white-space: normal; }
+      #servers.tile .port { align-self: flex-start; }
 
       .notice { color: var(--muted); }
     </style>

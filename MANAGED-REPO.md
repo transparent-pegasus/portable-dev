@@ -3,18 +3,28 @@
 Audience: a repository whose dev server should appear in Portable Dev's list and be
 reachable from a phone. Written to be copied into that repository.
 
-Portable Dev supervises dev servers with `process-compose` and publishes an index page.
-It is not a proxy and not a framework. The whole coupling is two environment variables
-and one entry in a YAML file.
+Portable Dev supervises dev servers with `process-compose`, publishes an index page, and
+owns the way in: the Cloudflare Tunnel, the address every server binds, the port range,
+and the firewall rule that covers it. It is not a proxy and not a framework — your server
+answers on its own port, directly. The whole coupling is two environment variables and one
+entry in a YAML file.
 
 ## 0. The shape in one line
 
 ```
-phone ──> tunnel / VPN ──> $BIND_ADDR:<your port> ──> your dev server
+phone ──> Cloudflare Tunnel ──> $BIND_ADDR:<your port> ──> your dev server
 ```
 
 Portable Dev owns everything left of the last arrow. You own the process on the right.
 The port number is the only thing that distinguishes it from every other repo's server.
+
+If your repository has its own tunnel, firewall rule or Terraform, it must stand down
+while Portable Dev manages it. A Cloudflare account has exactly one device profile, one
+Zero Trust organization and one WARP enrollment application; two repositories applying
+against them flip-flop, each apply reverting the other. Gate yours behind a switch — one
+environment variable that makes those targets refuse — and remember that handing ownership
+over means moving `terraform.tfstate` and the tunnel token too, not just flipping the
+switch. Applying without the state creates a second tunnel rather than adopting the first.
 
 ## 1. What Portable Dev does
 
@@ -30,7 +40,8 @@ The port number is the only thing that distinguishes it from every other repo's 
 - Discover your port. It reads exactly what you declare.
 - Health-check over HTTP, parse your logs, or restart you on a failing response.
 - Modify anything in your repository.
-- Manage a tunnel, firewall rule, or DNS record on your behalf.
+- Manage a tunnel, firewall rule, or DNS record *inside your repository*. It runs those
+  for the host, from its own checkout; yours must not also manage them.
 
 ## 3. What your repo must do
 

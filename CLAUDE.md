@@ -7,9 +7,13 @@
 A web application that lists the dev servers `process-compose` supervises on this host and
 lets you open one — from a phone, over whatever tunnel or VPN already reaches the host.
 
-The app is gateway-agnostic. It supervises dev servers, assigns their ports, and links to
-them; it never proxies, and it manages no tunnel, firewall, or DNS of its own. The gateway
-is somebody else's repository, and the coupling is two values: `BIND_ADDR` and `PORT_RANGE`.
+This repo owns the way in: the Cloudflare Tunnel, the `lo` alias, the nftables rule, and
+`PORT_RANGE`. Exactly one repository may own those — a Cloudflare account has one device
+profile, one Zero Trust organization and one WARP enrollment application, and two managers
+flip-flop. A managed repo stands its own tunnel targets down; see `MANAGED-REPO.md`.
+
+The app itself never proxies. It supervises dev servers, assigns their ports, and links to
+them; servers answer for themselves on their own port.
 
 ## Tech Stack
 
