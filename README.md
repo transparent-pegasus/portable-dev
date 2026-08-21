@@ -1,7 +1,8 @@
 # Portable Dev
 
 Lists the dev servers `process-compose` supervises on one host, and lets you open any of
-them from a phone. List view and tile view, one switch between them. Installable as a PWA.
+them from a phone. List view and tile view, one switch between them. Light or dark, following
+the system setting. Installable as a PWA.
 
 ## What this is
 

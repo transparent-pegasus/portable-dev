@@ -2,7 +2,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#fff" />
+    <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#18181b" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Dev servers reachable on this device." />
     <title>Portable Dev</title>
     <link rel="icon" href="/favicon.png" />
@@ -75,20 +76,33 @@
     -->
     <style is:global>
       :root {
+        --bg: #fafafa;
+        --fg: #18181b;
         --line: #e4e4e7;
         --muted: #71717a;
         --card: #fff;
-        --up: #16a34a;
-        --down: #d4d4d8;
-        color-scheme: light;
+        --track: #f4f4f5;
+        color-scheme: light dark;
+      }
+      /* Dark follows the system setting; every colour above is re-pointed here,
+         so no rule below this block names one directly. */
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #18181b;
+          --fg: #fafafa;
+          --line: #3f3f46;
+          --muted: #a1a1aa;
+          --card: #27272a;
+          --track: #52525b;
+        }
       }
       * { box-sizing: border-box; }
       body {
         margin: 0 auto;
         padding: 1.25rem 1rem 3rem;
         max-width: 46rem;
-        background: #fafafa;
-        color: #18181b;
+        background: var(--bg);
+        color: var(--fg);
         font: 1rem/1.5 system-ui, sans-serif;
       }
       header {
@@ -116,7 +130,7 @@
         height: 1.4rem;
         border: 1px solid var(--line);
         border-radius: 1rem;
-        background: #f4f4f5;
+        background: var(--track);
         cursor: pointer;
         transition: background 0.15s;
       }
@@ -127,13 +141,13 @@
         height: 1rem;
         margin: 0.15rem;
         border-radius: 50%;
-        background: #fff;
+        background: var(--card);
         box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
         transition: transform 0.15s;
       }
-      .toggle input:checked { background: #18181b; }
+      .toggle input:checked { background: var(--fg); }
       .toggle input:checked::after { transform: translateX(1.1rem); }
-      .toggle input:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
+      .toggle input:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 
       #servers { display: grid; gap: 0.6rem; }
       #servers.tile { grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); }
@@ -150,8 +164,8 @@
         color: inherit;
         text-decoration: none;
       }
-      #servers .server:active { border-color: #a1a1aa; }
-      #servers .server:focus-visible { outline: 2px solid #18181b; outline-offset: 2px; }
+      #servers .server:active { border-color: var(--muted); }
+      #servers .server:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 
       #servers .down { color: var(--muted); }
 
