@@ -19,7 +19,7 @@ SHELL := bash
 # Every verification target keeps its full output here for an agent to read back.
 LOGS := .tmp
 
-.PHONY: check test lint format fix build run up attach clean bind-addr firewall ports setup \
+.PHONY: check test lint format fix build run up attach down clean bind-addr firewall ports setup \
         test-src test-web lint-src lint-web format-src format-web
 
 # Everything, in order: test, then lint, then format.
@@ -123,6 +123,11 @@ up: build bind-addr firewall | $(LOGS)
 # Talk to a detached `up` over the same socket.
 attach: | $(LOGS)
 	$(PC) attach
+
+# Stop every process and the supervisor with it. Same socket, so it reaches
+# ours and not another repo's instance.
+down:
+	$(PC) down
 
 $(LOGS):
 	mkdir -p $@

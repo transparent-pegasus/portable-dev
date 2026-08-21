@@ -39,7 +39,7 @@ which need `sudo`.
 `make up` builds, then hands the whole arrangement to `process-compose`: this index page
 plus every process in the registry that is not marked `disabled: true`. `make run` starts
 the index alone, unsupervised, when that is all you want. `make attach` reaches a detached
-`up` over the same unix socket.
+`up` over the same unix socket, and `make down` stops it.
 
 `BIND_ADDR` defaults to `10.99.99.1`, a private address held on `lo`. If nothing owns it
 yet, `make run` fails with `EADDRNOTAVAIL`; `ip addr add 10.99.99.1/32 dev lo` creates it
