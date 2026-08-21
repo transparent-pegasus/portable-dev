@@ -8,7 +8,7 @@ SHELL := bash
 # Every verification target keeps its full output here for an agent to read back.
 LOGS := .tmp
 
-.PHONY: check test lint format fix build run up clean \
+.PHONY: check test lint format fix build run up attach clean \
         test-src test-web lint-src lint-web format-src format-web
 
 # Everything, in order: test, then lint, then format.
@@ -45,9 +45,17 @@ build:
 run: build
 	cargo run --release
 
-# Starts the dev servers in process-compose.yaml.
-up:
-	process-compose up
+# Starts the dev servers in process-compose.yaml. A unix socket instead of
+# process-compose's default TCP 8080, so a second instance on this host — another
+# repo's, or a long-running one — cannot collide with ours.
+PC := process-compose --use-uds -u $(CURDIR)/$(LOGS)/process-compose.sock
+
+up: | $(LOGS)
+	$(PC) up
+
+# Talk to a detached `up` over the same socket.
+attach: | $(LOGS)
+	$(PC) attach
 
 $(LOGS):
 	mkdir -p $@

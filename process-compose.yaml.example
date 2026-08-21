@@ -8,6 +8,10 @@
 # tunnel) and not 0.0.0.0 (published to the LAN).
 version: "0.5"
 
+# process-compose loads .env, so PORT from there leaks into every process that
+# does not set its own. Always give each process its own PORT= — one that no
+# other process, and nothing already running on this host, has taken.
+
 environment:
   - "BIND_ADDR=${BIND_ADDR:-10.99.99.1}"
 
