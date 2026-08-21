@@ -53,7 +53,15 @@ inconvenience.
 that daemonizes and returns exits immediately as far as the supervisor is concerned, and
 the real server is left unmanaged — it will not be stopped, restarted, or reported. Some
 tools daemonize by default and offer a separate `stop` subcommand; if yours does, find its
-foreground flag.
+foreground flag. Some only do it when stdout is not a terminal, which is exactly how a
+supervisor runs you — so test the command the way it will actually be started, not from
+your shell.
+
+**Register the process that serves your whole app, not just its front end.** If a
+backend serves both an API and the built UI, that backend is what belongs in the registry.
+A bundler's dev server started on its own returns the page and 404s every request the page
+makes — the UI renders, and nothing in it works. Symptoms point at the tunnel; the cause is
+that half the app was never started.
 
 **Log to stdout and stderr, and exit non-zero on failure.** That is the whole interface
 for "did it work". Nothing reads your log files.
