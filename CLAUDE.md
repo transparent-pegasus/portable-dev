@@ -13,14 +13,9 @@ is somebody else's repository, and the coupling is two values: `BIND_ADDR` and `
 
 ## Tech Stack
 
-Infra — designed to sit behind a Cloudflare Tunnel with Cloudflare Access in front,
-`cloudflared` and its nftables rules laid down by Terraform and run under systemd. None of
-that is managed in this repository. `process-compose` supervises what is.
-
-Application — Rust (axum, tokio) serves `web/dist` and `/api/servers` on `BIND_ADDR:PORT`.
-TypeScript on Astro builds the static UI, installable as a PWA.
-
-Tools — Cargo, Vitest, Biome.
+- Infra: Cloudflare Access, Cloudflare Tunnel, Terraform, cloudflared, systemd, nftables
+- Application: Rust, TypeScript, Astro
+- Tools: Cargo, Vitest, Biome
 
 ## Development Rules
 
