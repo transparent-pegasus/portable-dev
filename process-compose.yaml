@@ -1,0 +1,31 @@
+# The registry. Portable Dev lists a process here when — and only when — its
+# `environment` declares a `PORT`, and refuses to start if any of them falls
+# outside `PORT_RANGE` — outside it, nothing authorizes the port (see README).
+#
+# Every dev server must bind $BIND_ADDR. Not 127.0.0.1 (unreachable through the
+# tunnel) and not 0.0.0.0 (published to the LAN).
+version: "0.5"
+
+environment:
+  - "BIND_ADDR=${BIND_ADDR:-10.99.99.1}"
+
+processes:
+  # Replace these two with your own repos. Ports are deterministic per repo:
+  # assign once, inside PORT_RANGE, and do not reuse.
+  example-vite:
+    description: Example Vite app
+    disabled: true
+    working_dir: ../example-vite
+    command: npm run dev -- --host $BIND_ADDR --port $PORT --strictPort
+    environment:
+      - PORT=8789
+    readiness_probe:
+      http_get: { host: $BIND_ADDR, port: 8789, path: / }
+
+  example-api:
+    description: Example API
+    disabled: true
+    working_dir: ../example-api
+    command: cargo run
+    environment:
+      - PORT=8790

@@ -1,0 +1,8 @@
+/target
+/web/dist
+/web/node_modules
+/web/.astro
+CLAUDE.local.md
+.env
+.tmp/
+.worktrees/

@@ -1,0 +1,16 @@
+[package]
+name = "portable-dev"
+version = "0.1.0"
+edition = "2021"
+description = "Landing page and status API for process-compose managed dev servers reached over a Cloudflare Tunnel"
+license = "MIT"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
+tower-http = { version = "0.6", features = ["fs"] }
+serde = { version = "1", features = ["derive"] }
+serde_yaml_ng = "0.10"
+
+[profile.release]
+strip = true
