@@ -6,3 +6,7 @@ CLAUDE.local.md
 .env
 .tmp/
 .worktrees/
+
+# Local, per-host configuration
+process-compose.yaml
+.herdrpowers/

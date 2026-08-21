@@ -6,14 +6,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "test": "vitest run",
-    "check": "biome check ."
-  },
-  "dependencies": {
-    "astro": "^7.2.4"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.5.10",
-    "happy-dom": "^20.11.6",
-    "vitest": "^4.1.11"
+    "lint": "biome lint .",
+    "format": "biome format .",
+    "fix": "biome check --write ."
   }
 }

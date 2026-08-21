@@ -58,7 +58,12 @@ struct App {
 /// Ports come from each process's own `PORT=` entry; a process without one is
 /// not a dev server we can link to, so it is left out of the list.
 fn read_registry(path: &str, bind_addr: &str) -> Result<Vec<Server>, String> {
-    let text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
+    let text = std::fs::read_to_string(path).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => {
+            format!("{path} not found. Copy the example: `cp {path}.example {path}`")
+        }
+        _ => format!("{path}: {e}"),
+    })?;
     let compose: Compose = serde_yaml_ng::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
 
     Ok(compose
@@ -85,10 +90,16 @@ fn read_registry(path: &str, bind_addr: &str) -> Result<Vec<Server>, String> {
 /// `8787-8799`, or a bare `8787`. Blank means "no range declared".
 fn parse_range(spec: &str) -> Result<(u16, u16), String> {
     let (low, high) = spec.split_once('-').unwrap_or((spec, spec));
-    let bound = |text: &str| text.trim().parse::<u16>().map_err(|e| format!("PORT_RANGE `{spec}`: {e}"));
+    let bound = |text: &str| {
+        text.trim()
+            .parse::<u16>()
+            .map_err(|e| format!("PORT_RANGE `{spec}`: {e}"))
+    };
     let (low, high) = (bound(low)?, bound(high)?);
     if low > high {
-        return Err(format!("PORT_RANGE `{spec}`: low bound is above the high bound"));
+        return Err(format!(
+            "PORT_RANGE `{spec}`: low bound is above the high bound"
+        ));
     }
     Ok((low, high))
 }
@@ -149,7 +160,10 @@ async fn list_servers(State(app): State<App>) -> Json<Vec<Status>> {
     for (index, server) in app.servers.iter().cloned().enumerate() {
         let target = format!("{}:{}", app.bind_addr, server.port);
         probes.spawn(async move {
-            let up = matches!(timeout(PROBE_TIMEOUT, TcpStream::connect(&target)).await, Ok(Ok(_)));
+            let up = matches!(
+                timeout(PROBE_TIMEOUT, TcpStream::connect(&target)).await,
+                Ok(Ok(_))
+            );
             (index, Status { server, up })
         });
     }
@@ -182,10 +196,17 @@ async fn run() -> Result<(), String> {
     let servers = read_registry(&compose_file, &bind_addr)?;
 
     let mut ports = vec![("portable-dev".to_owned(), port)];
-    ports.extend(servers.iter().map(|server| (server.name.clone(), server.port)));
+    ports.extend(
+        servers
+            .iter()
+            .map(|server| (server.name.clone(), server.port)),
+    );
     check_ports(&env("PORT_RANGE", ""), &ports)?;
 
-    println!("portable-dev: {} server(s) from {compose_file}", servers.len());
+    println!(
+        "portable-dev: {} server(s) from {compose_file}",
+        servers.len()
+    );
 
     let app = App {
         servers: Arc::new(servers),
@@ -217,7 +238,9 @@ async fn run() -> Result<(), String> {
         format!("bind {socket}: {e}{hint}")
     })?;
     println!("portable-dev: listening on http://{socket}/");
-    axum::serve(listener, router).await.map_err(|e| e.to_string())
+    axum::serve(listener, router)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -230,13 +253,22 @@ mod tests {
         let straddling = [("api".to_owned(), 8790), ("stray".to_owned(), 9000)];
 
         assert!(check_ports("8787-8799", &inside).is_ok());
-        assert!(check_ports("", &straddling).is_ok(), "no range declared means no check");
-        assert!(check_ports("8788", &[("self".to_owned(), 8788)]).is_ok(), "a bare port is a range of one");
+        assert!(
+            check_ports("", &straddling).is_ok(),
+            "no range declared means no check"
+        );
+        assert!(
+            check_ports("8788", &[("self".to_owned(), 8788)]).is_ok(),
+            "a bare port is a range of one"
+        );
 
         let error = check_ports("8787-8799", &straddling).unwrap_err();
         assert!(error.contains("stray (9000)"), "{error}");
         assert!(!error.contains("api"), "{error}");
-        assert!(check_ports("8799-8787", &inside).is_err(), "reversed bounds are a typo, not a range");
+        assert!(
+            check_ports("8799-8787", &inside).is_err(),
+            "reversed bounds are a typo, not a range"
+        );
     }
 
     #[test]

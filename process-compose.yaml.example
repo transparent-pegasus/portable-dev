@@ -1,3 +1,5 @@
+# Copy to `process-compose.yaml`, which is git-ignored, and edit there.
+#
 # The registry. Portable Dev lists a process here when — and only when — its
 # `environment` declares a `PORT`, and refuses to start if any of them falls
 # outside `PORT_RANGE` — outside it, nothing authorizes the port (see README).

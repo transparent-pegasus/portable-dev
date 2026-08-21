@@ -20,10 +20,11 @@ addressed by port; the gateway is yours to run. The whole coupling is two values
 ## Quick start
 
 ```sh
-cp .env.example .env          # BIND_ADDR and PORT_RANGE, to match your gateway
-$EDITOR process-compose.yaml  # register your repos
-make build && make run        # landing page on $BIND_ADDR:$PORT
-make up                       # the dev servers themselves
+cp .env.example .env                                # BIND_ADDR and PORT_RANGE
+cp process-compose.yaml.example process-compose.yaml
+$EDITOR process-compose.yaml                        # register your repos
+make build && make run                              # landing page on $BIND_ADDR:$PORT
+make up                                             # the dev servers themselves
 ```
 
 `BIND_ADDR` defaults to `10.99.99.1`, a private address held on `lo`. If nothing owns it
@@ -33,8 +34,9 @@ first if you do.
 
 ## The registry
 
-`process-compose.yaml` is the only source of truth. A process appears in the UI when its
-`environment` declares a `PORT`:
+`process-compose.yaml` is the only source of truth. It is git-ignored — the repos on your
+machine are yours, not the project's — so start from `process-compose.yaml.example`. A
+process appears in the UI when its `environment` declares a `PORT`:
 
 ```yaml
 processes:
@@ -100,10 +102,18 @@ or behind your own TLS terminator. Nothing else in the app depends on it.
 ## Development
 
 ```sh
+make check    # test, then lint, then format — the whole gate
 make test     # cargo test + vitest
-make check    # clippy + biome
+make lint     # clippy -D warnings + biome lint
+make format   # cargo fmt --check + biome format
+make fix      # the write half: cargo fmt + biome check --write
 cd web && npm run dev
 ```
+
+Each of `test`, `lint`, and `format` covers both sides; `-src` and `-web` suffixes run one
+alone (`make test-web`). Every run tees its full output to `.tmp/<target>.log`, so a failure
+can be read back without re-running it. `check` never edits the tree — `fix` is the only
+target that writes.
 
 The UI fetches `/api/servers`, so `astro dev` alone shows the error state — run `make run`
 alongside it, or point Astro's dev server at it.
