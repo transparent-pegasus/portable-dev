@@ -65,6 +65,9 @@ Two rules, one enforced and one you have to keep:
 - Bind `$BIND_ADDR`. `127.0.0.1` is unreachable through a tunnel; `0.0.0.0` publishes the
   server to every network the host is on. Most dev servers need an explicit `--host`.
 
+`MANAGED-REPO.md` is the same rules written for the other side — copy it into a repo you
+are about to add.
+
 Set each dev server's own host-check too (Vite's `server.allowedHosts`, Next's
 `allowedDevOrigins`, and so on). Portable Dev's Host/Origin guard protects its own socket
 and nothing else.
