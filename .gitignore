@@ -10,3 +10,9 @@ CLAUDE.local.md
 # Local, per-host configuration
 process-compose.yaml
 .herdrpowers/
+
+# Cloudflare state and credentials — never in a public repo
+.tunnel-token*
+infra/.terraform/
+infra/*.tfstate*
+infra/terraform.tfstate.d/
