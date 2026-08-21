@@ -15,7 +15,7 @@ is somebody else's repository, and the coupling is two values: `BIND_ADDR` and `
 
 - Infra: Cloudflare Access, Cloudflare Tunnel, Terraform, cloudflared, systemd, nftables
 - Application: Rust, TypeScript, Astro
-- Tools: Cargo, Vitest, Biome
+- Tools: Cargo, Aube, Vitest, Biome
 
 ## Development Rules
 

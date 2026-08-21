@@ -20,26 +20,26 @@ test lint format: %: %-src %-web
 test-src: | $(LOGS)
 	cargo test 2>&1 | tee $(LOGS)/$@.log
 test-web: | $(LOGS)
-	cd web && npm test 2>&1 | tee ../$(LOGS)/$@.log
+	cd web && aube run test 2>&1 | tee ../$(LOGS)/$@.log
 
 lint-src: | $(LOGS)
 	cargo clippy --all-targets -- -D warnings 2>&1 | tee $(LOGS)/$@.log
 lint-web: | $(LOGS)
-	cd web && npm run lint 2>&1 | tee ../$(LOGS)/$@.log
+	cd web && aube run lint 2>&1 | tee ../$(LOGS)/$@.log
 
 format-src: | $(LOGS)
 	cargo fmt --check 2>&1 | tee $(LOGS)/$@.log
 format-web: | $(LOGS)
-	cd web && npm run format 2>&1 | tee ../$(LOGS)/$@.log
+	cd web && aube run format 2>&1 | tee ../$(LOGS)/$@.log
 
 # The write half of `format`. Not part of `check`, which must not edit the tree.
 fix:
 	cargo fmt
-	cd web && npm run fix
+	cd web && aube run fix
 
 build:
 	cargo build --release
-	cd web && npm ci && npm run build
+	cd web && aube ci && aube run build
 
 # Serves web/dist and /api/servers on $(BIND_ADDR):$(PORT).
 run: build

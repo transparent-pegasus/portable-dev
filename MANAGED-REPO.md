@@ -76,13 +76,18 @@ processes:
   my-repo:
     description: What this serves      # subtitle in the UI; optional
     working_dir: ../my-repo
-    command: npm run dev -- --host $BIND_ADDR --port $PORT --strictPort
+    command: aube run dev -- --host $BIND_ADDR --port $PORT --strictPort
     environment:
       - PORT=8789                      # assigned by Portable Dev, not by you
 ```
 
 `working_dir` is relative to Portable Dev's checkout. `BIND_ADDR` comes from the file's
 global `environment`; `PORT` is per-process.
+
+The `command` runs in your repo, with your tooling — the examples here use `aube`, which is
+what this host standardizes on. `aube run <script> -- <flags>` forwards flags to the script;
+`aube exec <binary> -- <flags>` runs a binary from `node_modules/.bin` directly, which is the
+form to reach for when a script does not take the flags you need.
 
 ## 5. Your icon
 

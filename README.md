@@ -43,7 +43,7 @@ processes:
   my-api:
     description: My API           # subtitle in the UI; optional
     working_dir: ../my-api
-    command: npm run dev -- --host $BIND_ADDR --port $PORT
+    command: aube run dev -- --host $BIND_ADDR --port $PORT
     environment:
       - PORT=8789                 # this is what gets listed
       - ICON=public/logo.svg      # optional, relative to working_dir
@@ -122,13 +122,16 @@ make test     # cargo test + vitest
 make lint     # clippy -D warnings + biome lint
 make format   # cargo fmt --check + biome format
 make fix      # the write half: cargo fmt + biome check --write
-cd web && npm run dev
+cd web && aube run dev
 ```
 
 Each of `test`, `lint`, and `format` covers both sides; `-src` and `-web` suffixes run one
 alone (`make test-web`). Every run tees its full output to `.tmp/<target>.log`, so a failure
 can be read back without re-running it. `check` never edits the tree — `fix` is the only
 target that writes.
+
+The web side uses aube, not npm — `aube ci` in `make build`,
+`aube run <script>` everywhere else.
 
 The UI fetches `/api/servers`, so `astro dev` alone shows the error state — run `make run`
 alongside it, or point Astro's dev server at it.

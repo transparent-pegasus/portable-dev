@@ -18,7 +18,7 @@ processes:
     description: Example Vite app
     disabled: true
     working_dir: ../example-vite
-    command: npm run dev -- --host $BIND_ADDR --port $PORT --strictPort
+    command: aube run dev -- --host $BIND_ADDR --port $PORT --strictPort
     environment:
       - PORT=8789
       - ICON=public/logo.svg # optional; relative to working_dir
