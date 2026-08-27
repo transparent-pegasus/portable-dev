@@ -34,8 +34,10 @@ make up                                             # everything: tunnel + index
 ```
 
 `make setup` is needed once, and again whenever `PORT_RANGE` changes — it is what makes the
-range true on the Cloudflare side. `make up` runs `bind-addr` and `firewall` first, both of
-which need `sudo`.
+range true on the Cloudflare side. `make up` runs `bind-addr` and `firewall` first: the `lo`
+alias and the nftables rule are kernel state a reboot clears, so both are re-added every
+time, and both need `sudo`. `make install-net` moves that to boot time instead — see
+[Keeping it across reboots](#keeping-it-across-reboots).
 
 `make up` builds, then hands the whole arrangement to `process-compose`: this index page
 plus every process in the registry that is not marked `disabled: true`. `make run` starts
@@ -46,6 +48,24 @@ the index alone, unsupervised, when that is all you want. `make attach` reaches 
 yet, `make run` fails with `EADDRNOTAVAIL`; `ip addr add 10.99.99.1/32 dev lo` creates it
 for the current boot. Binding a real interface address works too — read the next section
 first if you do.
+
+### Keeping it across reboots
+
+Optional, and nothing else depends on it. `make install-net` installs one systemd unit that
+re-adds the alias and the drop rule at boot, which is the only thing `make up` wanted `sudo`
+for:
+
+```sh
+make install-net    # one sudo now, none from `make up` afterwards
+make uninstall-net  # undo; `make up` goes back to re-adding both itself
+```
+
+It writes `/etc/systemd/system/portable-dev-net.service` and `/etc/portable-dev/firewall.nft`.
+Stopping the unit removes our nftables table and the alias, and never any other table.
+Re-run `make install-net` after changing `BIND_ADDR` or `PORT_RANGE`.
+
+Skipping it costs nothing but the `sudo` prompt: `make up` re-adds both itself, exactly as
+it did before.
 
 ## The registry
 
@@ -76,7 +96,8 @@ Two rules, one enforced and one you have to keep:
   range is what the Access destination and the nftables rule actually cover — a port outside
   it is reachable by anyone who can route to the address and is authorized by nothing. That
   is a security bug, not a broken link. Widening it means editing `PORT_RANGE`, then
-  `make setup && make firewall`. Leave it blank to switch the check off.
+  `make setup && make firewall` — `make setup && make install-net` if you installed the
+  unit. Leave it blank to switch the check off.
 - Bind `$BIND_ADDR`. `127.0.0.1` is unreachable through a tunnel; `0.0.0.0` publishes the
   server to every network the host is on. Most dev servers need an explicit `--host`.
 
