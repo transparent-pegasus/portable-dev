@@ -12,6 +12,13 @@ PORTS := $(or $(strip $(PORT_RANGE)),$(PORT))
 # root anyway — resolve it by path rather than asking whether the user sees it.
 NFT = $(shell command -v nft 2>/dev/null || for p in /usr/sbin/nft /sbin/nft; do test -x $$p && echo $$p && break; done)
 
+# The unit needs absolute paths, and iproute2 sits in sbin for the same reason.
+IP = $(shell command -v ip 2>/dev/null || for p in /usr/sbin/ip /sbin/ip; do test -x $$p && echo $$p && break; done)
+
+# Installed by `make install-net`. `firewall` and `bind-addr` skip their own work
+# when it is running, so `make up` needs no sudo on a host that has it.
+UNIT := portable-dev-net.service
+
 # pipefail so a failing command is not masked by the `tee` that logs it.
 SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
@@ -19,7 +26,7 @@ SHELL := bash
 # Every verification target keeps its full output here for an agent to read back.
 LOGS := .tmp
 
-.PHONY: check test lint format fix build run up attach down clean bind-addr firewall ports setup \
+.PHONY: check test lint format fix build run up attach down clean bind-addr firewall ports setup install-net uninstall-net \
         test-src test-web lint-src lint-web format-src format-web
 
 # Everything, in order: test, then lint, then format.
@@ -69,11 +76,32 @@ bind-addr: ## add BIND_ADDR to lo if missing (needs sudo)
 # rewritten on every one of their runs, so anything added there disappears.
 firewall: ports | $(LOGS) ## drop BIND_ADDR:PORTS arriving off-loopback (needs sudo)
 	@test -n "$(NFT)" || { echo "nft not found — install nftables"; exit 1; }
-	@{ sudo -n $(NFT) list table inet portable-dev 2>/dev/null || true; } \
-	  | grep -qF "ip daddr $$BIND_ADDR tcp dport $(PORTS)" \
+	@systemctl is-active --quiet $(UNIT) 2>/dev/null \
 	  || { echo "installing nft drop rule for $(PORTS) (sudo)"; \
 	       sed -e "s/@BIND_ADDR@/$$BIND_ADDR/" -e "s/@PORTS@/$(PORTS)/" deploy/portable-dev.nft > $(LOGS)/portable-dev.nft; \
 	       sudo $(NFT) -f $(LOGS)/portable-dev.nft; }
+
+# --- the same two pieces of state, kept across reboots -----------------------
+# Opt-in and self-contained: `make up` never requires this, and re-adds both
+# itself when it is absent. Installing only moves the sudo from every `up` to
+# this one command. Re-run it after changing BIND_ADDR or PORT_RANGE.
+install-net: ports | $(LOGS) ## re-add the alias and the drop rule at every boot (sudo once)
+	@test -n "$(NFT)" -a -n "$(IP)" || { echo "nft or ip not found — install nftables and iproute2"; exit 1; }
+	@sed -e "s/@BIND_ADDR@/$$BIND_ADDR/" -e "s/@PORTS@/$(PORTS)/" deploy/portable-dev.nft > $(LOGS)/portable-dev.nft
+	@sed -e "s/@BIND_ADDR@/$$BIND_ADDR/" -e "s|@IP@|$(IP)|" -e "s|@NFT@|$(NFT)|" deploy/$(UNIT) > $(LOGS)/$(UNIT)
+	sudo install -d -m 755 /etc/portable-dev
+	sudo install -m 644 $(LOGS)/portable-dev.nft /etc/portable-dev/firewall.nft
+	sudo install -m 644 $(LOGS)/$(UNIT) /etc/systemd/system/$(UNIT)
+	sudo systemctl daemon-reload
+	sudo systemctl enable --now $(UNIT)
+
+# Stopping the unit runs its ExecStop, which drops our table and the alias. The
+# next `make up` puts both back for the current boot, as it did before.
+uninstall-net: ## stop re-adding them at boot (sudo)
+	-sudo systemctl disable --now $(UNIT)
+	sudo rm -f /etc/systemd/system/$(UNIT) /etc/portable-dev/firewall.nft
+	-sudo rmdir /etc/portable-dev
+	sudo systemctl daemon-reload
 
 # A port outside the covered range is authorized by nothing and reachable from
 # the LAN. The server refuses to start on one; catch it before the apply too.

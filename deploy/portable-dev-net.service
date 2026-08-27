@@ -1,0 +1,26 @@
+# Rendered by make (sed): @BIND_ADDR@ @IP@ @NFT@. Installed by `make install-net`,
+# removed by `make uninstall-net`. Optional: `make up` re-adds the same two pieces
+# of state itself when this is not installed. Ordering copied from Debian's own
+# nftables.service, which reads /etc/nftables.conf this early for the same reason.
+[Unit]
+Description=portable-dev: lo alias and off-loopback drop rule
+Wants=network-pre.target
+Before=network-pre.target shutdown.target
+Conflicts=shutdown.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+StandardInput=null
+ProtectSystem=full
+ProtectHome=true
+# `-` because an alias already on lo makes ip exit 2, and that is the success case.
+ExecStart=-@IP@ addr add @BIND_ADDR@/32 dev lo
+ExecStart=@NFT@ -f /etc/portable-dev/firewall.nft
+# Our table only. `nft flush ruleset` would take every other owner's with it.
+ExecStop=-@NFT@ delete table inet portable-dev
+ExecStop=-@IP@ addr del @BIND_ADDR@/32 dev lo
+
+[Install]
+WantedBy=sysinit.target
