@@ -50,6 +50,10 @@ struct Compose {
 struct Process {
     description: Option<String>,
     working_dir: Option<String>,
+    /// process-compose does not start a disabled process, so it is not a
+    /// server we can link to.
+    #[serde(default)]
+    disabled: bool,
     #[serde(default)]
     environment: Vec<String>,
 }
@@ -120,6 +124,9 @@ fn read_registry(path: &str, bind_addr: &str) -> Result<Registry, String> {
     let mut servers = Vec::new();
     let mut icons = HashMap::new();
     for (name, process) in compose.processes {
+        if process.disabled {
+            continue;
+        }
         let entry = |key: &str| {
             process
                 .environment
@@ -397,12 +404,17 @@ processes:
   worker:
     command: cargo run
     environment: ["RUST_LOG=debug"]
+  paused:
+    command: npm run dev
+    disabled: true
+    environment: ["PORT=8792"]
 "#;
         let path = std::env::temp_dir().join("portable-dev-registry-test.yaml");
         std::fs::write(&path, yaml).unwrap();
         let (servers, icons) = read_registry(path.to_str().unwrap(), "10.99.99.1").unwrap();
 
-        // `worker` declares no PORT, so it is not a linkable dev server.
+        // `worker` declares no PORT and `paused` is disabled, so neither is a
+        // linkable dev server.
         assert_eq!(servers.len(), 2);
         assert_eq!(servers[0].name, "api");
         assert_eq!(servers[0].port, 8790);
